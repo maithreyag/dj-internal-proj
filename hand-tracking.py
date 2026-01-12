@@ -8,7 +8,7 @@ HAND_CONNECTIONS = [(4, 8), (8, 12)]
 
 LANDMARKS = [4, 8, 12]
 
-MERGE_DIST = 75
+MERGE_DIST = 65
 
 class HandTracker:
     def __init__(self, model_path='./hand_landmarker.task'):
@@ -25,7 +25,7 @@ class HandTracker:
         self.landmarker = mp.tasks.vision.HandLandmarker.create_from_options(options)
         self.start_time = time.time() * 1000
 
-        self.state = 0 # 0: default, 1: spin, 2: pinch
+        self.state = {"Left": 0, "Right": 0} # 0: default, 1: spin, 2: pinch
 
     def _result_callback(self, result, output_image, timestamp_ms):
         self.latest_result = result
@@ -43,7 +43,7 @@ class HandTracker:
     def close(self):
         self.landmarker.close()
 
-def draw_overlay(frame, result):
+def draw_overlay(frame, tracker, result):
     """
     Draws the DJ-style skeleton.
     """
@@ -52,27 +52,46 @@ def draw_overlay(frame, result):
     
     height, width, _ = frame.shape
     
-    for hand in result.hand_landmarks:
+    for h, hand in enumerate(result.hand_landmarks):
+
+        handedness = result.handedness[h][0].category_name
 
         dots = []
 
-        for i in range(len(LANDMARKS)):
-            start_idx, end_idx = LANDMARKS[i], LANDMARKS[i + 1]
-            start, end = hand[start_idx], hand[end_idx]
+        state = 0
+        i = 0
+        while i < len(LANDMARKS):
+            if i + 1 < len(LANDMARKS):
+                start_idx, end_idx = LANDMARKS[i], LANDMARKS[i + 1]
+                start, end = hand[start_idx], hand[end_idx]
 
-            x1, y1 = int(start.x * width), int(start.y * height)
-            x2, y2 = int(end.x * width), int(end.y * height)
+                x1, y1 = int(start.x * width), int(start.y * height)
+                x2, y2 = int(end.x * width), int(end.y * height)
 
-            dist = abs(x2 - x1) + abs(y2 - y1)
+                dist = abs(x2 - x1) + abs(y2 - y1)
 
-            if dist <= MERGE_DIST:
-                x_mid, y_mid = int((x1 + x2) / 2), int((y1 + y2) / 2)
-                cv2.circle(frame, (x_mid, y_mid), 4, (255, 255, 255), -1)
-                dots.append((x_mid, y_mid))
-                i += 1
+                if dist <= MERGE_DIST:
+                    if (start_idx, end_idx) == (4, 8):
+                        state = 1
+                    else:
+                        state = 2
+                    x_mid, y_mid = int((x1 + x2) / 2), int((y1 + y2) / 2)
+                    cv2.circle(frame, (x_mid, y_mid), 6, (255, 255, 255), -1)
+                    dots.append((x_mid, y_mid))
+                    i += 2
+                else:
+                    cv2.circle(frame, (x1, y1), 4, (255, 255, 255), -1)
+                    i += 1
+                    dots.append((x1, y1))
             else:
-                cv2.circle(frame, (x1, y1), 4, (255, 255, 255), -1)
-                dots.append((x1, y1))
+                idx = LANDMARKS[i]
+                landmark = hand[idx]
+                x, y = int(landmark.x * width), int(landmark.y * height)
+                cv2.circle(frame, (x, y), 4, (255, 255, 255), -1)
+                dots.append((x, y))
+                i += 1
+        
+        tracker.state[handedness] = state
 
         for i in range(len(dots) - 1):
             start, end = dots[i], dots[i + 1]
@@ -105,7 +124,7 @@ def main():
             result = tracker.get_latest_result()
 
             if result:
-                frame = draw_overlay(frame, result)
+                frame = draw_overlay(frame, tracker, result)
 
             cv2.imshow('CV DJ Set', frame)
 

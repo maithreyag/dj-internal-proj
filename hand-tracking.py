@@ -45,12 +45,15 @@ class HandTracker:
 
 def draw_overlay(frame, tracker, result):
     """
-    Draws the DJ-style skeleton.
+    Draws the DJ-style skeleton and UI elements.
     """
+    height, width, _ = frame.shape
+    
+    cv2.rectangle(frame, (width // 3, 2 * height // 3), (width // 3 + 100, 2 * height // 3 + 100), (0, 0, 255), 3)
+    cv2.rectangle(frame, (2 * width // 3, 2 * height // 3), (2 * width // 3 + 100, 2 * height // 3 + 100), (0, 0, 255), 3)
+
     if not result or not result.hand_landmarks:
         return frame
-    
-    height, width, _ = frame.shape
     
     for h, hand in enumerate(result.hand_landmarks):
 
@@ -112,6 +115,7 @@ def main():
     print("DJ Hand Tracking Started. Press 'q' to exit.")
 
     try:
+    
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -122,11 +126,10 @@ def main():
             tracker.detect_async(rgb_frame)
 
             result = tracker.get_latest_result()
-
-            if result:
-                frame = draw_overlay(frame, tracker, result)
-
-            cv2.imshow('CV DJ Set', frame)
+            frame = draw_overlay(frame, tracker, result)
+            
+            reversed_frame = cv2.flip(frame, 1)
+            cv2.imshow('CV DJ Set', reversed_frame)
 
             if cv2.waitKey(1) == ord('q'):
                 break

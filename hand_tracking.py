@@ -1,19 +1,17 @@
 import cv2
 import mediapipe as mp
 import time
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-
-HAND_CONNECTIONS = [(4, 8), (8, 12)]
 
 LANDMARKS = [4, 8, 12]
 
-MERGE_DIST = 65
+MERGE_DIST = 60
+UNMERGE_DIST = 80
+
 
 class HandTracker:
     def __init__(self, model_path='./hand_landmarker.task'):
         self.latest_result = None
-        
+
         base_options = mp.tasks.BaseOptions(model_asset_path=model_path)
         options = mp.tasks.vision.HandLandmarkerOptions(
             base_options=base_options,
@@ -21,11 +19,12 @@ class HandTracker:
             result_callback=self._result_callback,
             num_hands=2
         )
-        
+
         self.landmarker = mp.tasks.vision.HandLandmarker.create_from_options(options)
         self.start_time = time.time() * 1000
 
-        self.state = {"Left": 0, "Right": 0} # 0: default, 1: spin, 2: pinch
+        self.pinch_pos = {"Left": None, "Right": None}
+        self.state = {"Left": 0, "Right": 0}
 
     def _result_callback(self, result, output_image, timestamp_ms):
         self.latest_result = result
@@ -36,33 +35,36 @@ class HandTracker:
     def detect_async(self, frame):
         now = time.time() * 1000
         timestamp = int(now - self.start_time)
-        
+
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         self.landmarker.detect_async(mp_image, timestamp)
 
     def close(self):
         self.landmarker.close()
 
-def draw_overlay(frame, tracker, result):
+
+def draw_hand_skeleton(frame, tracker, result):
     """
-    Draws the DJ-style skeleton and UI elements.
+    Draws the hand skeleton overlay (dots and lines).
+    Only handles hand visualization, not UI elements.
     """
-    height, width, _ = frame.shape
-    
-    cv2.rectangle(frame, (width // 3, 2 * height // 3), (width // 3 + 100, 2 * height // 3 + 100), (0, 0, 255), 3)
-    cv2.rectangle(frame, (2 * width // 3, 2 * height // 3), (2 * width // 3 + 100, 2 * height // 3 + 100), (0, 0, 255), 3)
+    # Reset all hand states at start of each frame
+    for hand in ["Left", "Right"]:
+        tracker.pinch_pos[hand] = None
+        tracker.state[hand] = 0
 
     if not result or not result.hand_landmarks:
         return frame
-    
-    for h, hand in enumerate(result.hand_landmarks):
 
+    height, width, _ = frame.shape
+
+    for h, hand in enumerate(result.hand_landmarks):
         handedness = result.handedness[h][0].category_name
 
         dots = []
-
         state = 0
         i = 0
+
         while i < len(LANDMARKS):
             if i + 1 < len(LANDMARKS):
                 start_idx, end_idx = LANDMARKS[i], LANDMARKS[i + 1]
@@ -73,19 +75,27 @@ def draw_overlay(frame, tracker, result):
 
                 dist = abs(x2 - x1) + abs(y2 - y1)
 
-                if dist <= MERGE_DIST:
+                # Hysteresis: use different threshold based on previous state
+                if (start_idx, end_idx) == (4, 8):
+                    threshold = UNMERGE_DIST if state == 1 else MERGE_DIST
+                else:
+                    threshold = UNMERGE_DIST if state == 2 else UNMERGE_DIST
+
+                if dist <= threshold:
+                    x_mid, y_mid = int((x1 + x2) / 2), int((y1 + y2) / 2)
                     if (start_idx, end_idx) == (4, 8):
+                        tracker.pinch_pos[handedness] = (x_mid, y_mid)
                         state = 1
                     else:
                         state = 2
-                    x_mid, y_mid = int((x1 + x2) / 2), int((y1 + y2) / 2)
+
                     cv2.circle(frame, (x_mid, y_mid), 6, (255, 255, 255), -1)
                     dots.append((x_mid, y_mid))
                     i += 2
                 else:
                     cv2.circle(frame, (x1, y1), 4, (255, 255, 255), -1)
-                    i += 1
                     dots.append((x1, y1))
+                    i += 1
             else:
                 idx = LANDMARKS[i]
                 landmark = hand[idx]
@@ -93,50 +103,11 @@ def draw_overlay(frame, tracker, result):
                 cv2.circle(frame, (x, y), 4, (255, 255, 255), -1)
                 dots.append((x, y))
                 i += 1
-        
+
         tracker.state[handedness] = state
 
         for i in range(len(dots) - 1):
             start, end = dots[i], dots[i + 1]
-
             cv2.line(frame, start, end, (255, 255, 255), 1)
 
-        
     return frame
-
-def main():
-    tracker = HandTracker()
-    cap = cv2.VideoCapture(0)
-
-    if not cap.isOpened():
-        print("Error: Camera not found.")
-        return
-
-    print("DJ Hand Tracking Started. Press 'q' to exit.")
-
-    try:
-    
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                print("Ignoring empty camera frame.")
-                continue
-
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            tracker.detect_async(rgb_frame)
-
-            result = tracker.get_latest_result()
-            frame = draw_overlay(frame, tracker, result)
-            
-            reversed_frame = cv2.flip(frame, 1)
-            cv2.imshow('CV DJ Set', reversed_frame)
-
-            if cv2.waitKey(1) == ord('q'):
-                break
-    finally:
-        tracker.close()
-        cap.release()
-        cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    main()

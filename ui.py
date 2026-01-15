@@ -1,13 +1,20 @@
 import cv2
+import pygame
 
 class Button:
-    def __init__(self, x, y, width, height, color=(0, 0, 0), active_color=(0, 255, 0)):
+    def __init__(self, x, y, width, height, color=(0, 0, 0), active_color=(0, 255, 0), sounds=None):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.color = color
         self.active_color = active_color
+        self.sounds = sounds or []
+        self.channels = [sound.play() for sound in self.sounds]
+        for channel in self.channels:
+            if channel:
+                channel.pause()
+
 
         self.pinched = {"Left": False, "Right": False}
         self.on = False
@@ -56,7 +63,13 @@ class Button:
         return frame
 
     def play(self):
-        pass
+        for channel in self.channels:
+            if channel:
+                channel.unpause()
+        
+    
 
     def pause(self):
-        pass
+        for channel in self.channels:
+            if channel:
+                channel.pause()

@@ -1,11 +1,27 @@
 import cv2
 from hand_tracking import HandTracker, draw_hand_skeleton
 from ui import Button
-
+import pygame
 
 def main():
     tracker = HandTracker()
     cap = cv2.VideoCapture(0)
+    pygame.mixer.init()
+    pygame.mixer.set_num_channels(16)
+    bass_left = pygame.mixer.Sound("songs/oouuh/bass.mp3")
+    drums_left = pygame.mixer.Sound("songs/oouuh/drums.mp3")
+    instrumental_left = pygame.mixer.Sound("songs/oouuh/instrumental.mp3")
+    other_left= pygame.mixer.Sound("songs/oouuh/other.mp3")
+    vocals_left = pygame.mixer.Sound("songs/oouuh/vocals.mp3")
+
+    bass_right = pygame.mixer.Sound("songs/ghetto_angels/bass.mp3")
+    drums_right = pygame.mixer.Sound("songs/ghetto_angels/drums.mp3")
+    instrumental_right = pygame.mixer.Sound("songs/ghetto_angels/instrumental.mp3")
+    other_right = pygame.mixer.Sound("songs/ghetto_angels/other.mp3")
+    vocals_right = pygame.mixer.Sound("songs/ghetto_angels/vocals.mp3")
+    
+    left_sounds = [bass_left, drums_left, instrumental_left, other_left, vocals_left]
+    right_sounds = [bass_right, drums_right, instrumental_right, other_right, vocals_right]
 
     if not cap.isOpened():
         print("Error: Camera not found.")
@@ -18,8 +34,8 @@ def main():
 
     height, width, _ = frame.shape
 
-    left_button = Button(width // 3, 2 * height // 3, 100, 100)
-    right_button = Button(2 * width // 3, 2 * height // 3, 100, 100)
+    left_button = Button(2 * width // 3, 2 * height // 3, 100, 100, sounds=left_sounds)
+    right_button = Button(width // 3, 2 * height // 3, 100, 100, sounds=right_sounds)
     buttons = [left_button, right_button]
 
     print("DJ Hand Tracking Started. Press 'q' to exit.")

@@ -11,6 +11,7 @@ class SongSelector:
         self.playing = {"left": False, "right": False}
         self.volumes = {"left": [1.0] * 4, "right": [1.0] * 4}
         self.position = {"left": 0, "right": 0}
+        self.waveforms = {"left": [], "right": []}
 
         self.stream = sd.OutputStream(
             samplerate=sr,
@@ -57,8 +58,13 @@ class SongSelector:
             if data.ndim == 1:
                 data = np.column_stack([data, data])
             loaded.append(data)
+
         self.stems[side] = loaded
         self.position[side] = 0
+
+        combined = sum(stem[:, 0] for stem in loaded)
+        chunk_size = 1000
+        self.waveforms[side] = [np.max(np.abs(combined[i:i+chunk_size])) for i in range(0, len(combined), chunk_size)]
 
     def seek(self, side, ds):
         self.position[side] += int(ds * self.sr)

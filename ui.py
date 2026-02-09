@@ -161,6 +161,49 @@ class Deck:
         mask = rotated > 30
 
         frame[y1:y2, x1:x2][mask] = rotated[mask]
-        
+
+        return frame
+
+
+class Waveform:
+    def __init__(self, x, y, width, height, selector, side, color=(0, 255, 0)):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.selector = selector
+        self.side = side
+        self.color = color
+
+    def draw(self, frame):
+        waveform = self.selector.waveforms[self.side]
+        if not len(waveform):
+            return frame
+
+        # Map playback position to waveform index
+        duration = self.selector.get_duration(self.side)
+        position = self.selector.get_position(self.side)
+        if duration <= 0:
+            return frame
+
+        center_idx = int((position / duration) * len(waveform))
+        half_w = self.width // 2
+
+        # Draw bars centered on current position
+        for px in range(self.width):
+            idx = center_idx - half_w + px
+            if idx < 0 or idx >= len(waveform):
+                continue
+            amp = waveform[idx]
+            bar_h = int(amp * self.height)
+            x = self.x + px
+            y_top = self.y + self.height // 2 - bar_h // 2
+            y_bot = self.y + self.height // 2 + bar_h // 2
+            cv2.line(frame, (x, y_top), (x, y_bot), self.color, 1)
+
+        # Playhead line
+        cx = self.x + half_w
+        cv2.line(frame, (cx, self.y), (cx, self.y + self.height), (255, 255, 255), 1)
+
         return frame
 

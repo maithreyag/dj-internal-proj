@@ -1,7 +1,7 @@
 import cv2
 from hand_tracker import HandTracker, draw_hand_skeleton
 from song_selector import SongSelector
-from ui import PlayButton, StemButton, Deck
+from ui import PlayButton, StemButton, Deck, Waveform
 
 def main():
     tracker = HandTracker()
@@ -26,8 +26,8 @@ def main():
     song_selector.select("right", def_right)
 
     # Play buttons (display coords: left on left, right on right)
-    left_button = PlayButton(width // 3, 2 * height // 3, 100, 100, selector=song_selector, side="left")
-    right_button = PlayButton(2 * width // 3 - 100, 2 * height // 3, 100, 100, selector=song_selector, side="right")
+    left_button = PlayButton(width // 4 - 30, 2 * height // 3, 100, 100, selector=song_selector, side="left")
+    right_button = PlayButton(3 * width // 4 - 70, 2 * height // 3, 100, 100, selector=song_selector, side="right")
 
     buttons = [left_button, right_button]
 
@@ -36,7 +36,7 @@ def main():
     gap = 40
 
     # Left stems (to the left of left play button)
-    lx = width // 3 - (2 * stem_size + gap) - gap
+    lx = width // 4 - 30 - (2 * stem_size + gap) - gap
     ly = 2 * height // 3
     for i, label in enumerate(stem_labels):
         row, col = divmod(i, 2)
@@ -46,7 +46,7 @@ def main():
             selector=song_selector, side="left", stem_index=i, label=label))
 
     # Right stems (to the right of right play button)
-    rx = 2 * width // 3 + gap
+    rx = 3 * width // 4 + 30 + gap
     ry = 2 * height // 3
     for i, label in enumerate(stem_labels):
         row, col = divmod(i, 2)
@@ -60,6 +60,12 @@ def main():
     left_deck = Deck(deck_radius + 20, deck_radius + 20, deck_radius, selector=song_selector, side="left", label="L")
     right_deck = Deck(width - deck_radius - 20, deck_radius + 20, deck_radius, selector=song_selector, side="right", label="R")
     decks = [left_deck, right_deck]
+
+    wf_height = 60
+    wf_y = 2 * deck_radius + 40
+    left_wf = Waveform(left_deck.cx - deck_radius, wf_y, 2 * deck_radius, wf_height, selector=song_selector, side="left")
+    right_wf = Waveform(right_deck.cx - deck_radius, wf_y, 2 * deck_radius, wf_height, selector=song_selector, side="right")
+    waveforms = [left_wf, right_wf]
 
     print("DJ Hand Tracking Started. Press 'q' to exit.")
 
@@ -107,6 +113,9 @@ def main():
 
             for deck in decks:
                 deck.draw(reversed_frame)
+
+            for wf in waveforms:
+                wf.draw(reversed_frame)
 
             cv2.imshow('CV DJ Set', reversed_frame)
 

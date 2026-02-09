@@ -1,27 +1,11 @@
 import cv2
-from hand_tracking import HandTracker, draw_hand_skeleton
-from ui import Button
-import pygame
+from hand_tracker import HandTracker, draw_hand_skeleton
+from song_selector import SongSelector
+from ui import PlayButton, StemButton, Deck
 
 def main():
     tracker = HandTracker()
     cap = cv2.VideoCapture(0)
-    pygame.mixer.init()
-    pygame.mixer.set_num_channels(16)
-    bass_left = pygame.mixer.Sound("songs/oouuh/bass.mp3")
-    drums_left = pygame.mixer.Sound("songs/oouuh/drums.mp3")
-    instrumental_left = pygame.mixer.Sound("songs/oouuh/instrumental.mp3")
-    other_left= pygame.mixer.Sound("songs/oouuh/other.mp3")
-    vocals_left = pygame.mixer.Sound("songs/oouuh/vocals.mp3")
-
-    bass_right = pygame.mixer.Sound("songs/ghetto_angels/bass.mp3")
-    drums_right = pygame.mixer.Sound("songs/ghetto_angels/drums.mp3")
-    instrumental_right = pygame.mixer.Sound("songs/ghetto_angels/instrumental.mp3")
-    other_right = pygame.mixer.Sound("songs/ghetto_angels/other.mp3")
-    vocals_right = pygame.mixer.Sound("songs/ghetto_angels/vocals.mp3")
-    
-    left_sounds = [bass_left, drums_left, instrumental_left, other_left, vocals_left]
-    right_sounds = [bass_right, drums_right, instrumental_right, other_right, vocals_right]
 
     if not cap.isOpened():
         print("Error: Camera not found.")
@@ -34,9 +18,48 @@ def main():
 
     height, width, _ = frame.shape
 
-    left_button = Button(2 * width // 3, 2 * height // 3, 100, 100, sounds=left_sounds)
-    right_button = Button(width // 3, 2 * height // 3, 100, 100, sounds=right_sounds)
+    def_left = "ctmn"
+    def_right = "crew_love"
+
+    song_selector = SongSelector()
+    song_selector.select("left", def_left)
+    song_selector.select("right", def_right)
+
+    # Play buttons (display coords: left on left, right on right)
+    left_button = PlayButton(width // 3, 2 * height // 3, 100, 100, selector=song_selector, side="left")
+    right_button = PlayButton(2 * width // 3 - 100, 2 * height // 3, 100, 100, selector=song_selector, side="right")
+
     buttons = [left_button, right_button]
+
+    stem_labels = ["bass", "drm", "oth", "vox"]
+    stem_size = 70
+    gap = 40
+
+    # Left stems (to the left of left play button)
+    lx = width // 3 - (2 * stem_size + gap) - gap
+    ly = 2 * height // 3
+    for i, label in enumerate(stem_labels):
+        row, col = divmod(i, 2)
+        buttons.append(StemButton(
+            lx + col * (stem_size + gap), ly + row * (stem_size + gap),
+            stem_size, stem_size,
+            selector=song_selector, side="left", stem_index=i, label=label))
+
+    # Right stems (to the right of right play button)
+    rx = 2 * width // 3 + gap
+    ry = 2 * height // 3
+    for i, label in enumerate(stem_labels):
+        row, col = divmod(i, 2)
+        buttons.append(StemButton(
+            rx + col * (stem_size + gap), ry + row * (stem_size + gap),
+            stem_size, stem_size,
+            selector=song_selector, side="right", stem_index=i, label=label))
+
+    # Decks (top corners)
+    deck_radius = height // 4
+    left_deck = Deck(deck_radius + 20, deck_radius + 20, deck_radius, selector=song_selector, side="left", label="L")
+    right_deck = Deck(width - deck_radius - 20, deck_radius + 20, deck_radius, selector=song_selector, side="right", label="R")
+    decks = [left_deck, right_deck]
 
     print("DJ Hand Tracking Started. Press 'q' to exit.")
 
@@ -52,31 +75,45 @@ def main():
 
             result = tracker.get_latest_result()
 
-            # Draw hand skeleton
             frame = draw_hand_skeleton(frame, tracker, result)
 
             for hand in ["Left", "Right"]:
                 pinch_pos = tracker.pinch_pos[hand]
+                # Flip to display coords for hit detection
+                if pinch_pos:
+                    pinch_pos = (width - 1 - pinch_pos[0], pinch_pos[1])
+
                 for button in buttons:
                     if tracker.state[hand] == 1:
                         button.update(hand, pinch_pos)
                     else:
                         button.pinched[hand] = False
-                    
-                    if tracker.state[hand] == 2:
-                        pass
-                    else:
-                        pass
 
-            for button in buttons:
-                button.draw(frame)
+                press_pos = tracker.press_pos[hand]
+                if press_pos:
+                    press_pos = (width - 1 - press_pos[0], press_pos[1])
+                for deck in decks:
+                    if tracker.state[hand] == 2:
+                        deck.update(hand, press_pos)
+                    else:
+                        deck.prev_angle[hand] = None
 
             reversed_frame = cv2.flip(frame, 1)
+
+            for button in buttons:
+                button.draw(reversed_frame)
+                if hasattr(button, 'draw_label'):
+                    button.draw_label(reversed_frame)
+
+            for deck in decks:
+                deck.draw(reversed_frame)
+
             cv2.imshow('CV DJ Set', reversed_frame)
 
             if cv2.waitKey(1) == ord('q'):
                 break
     finally:
+        song_selector.close()
         tracker.close()
         cap.release()
         cv2.destroyAllWindows()

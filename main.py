@@ -1,7 +1,7 @@
 import cv2
 from hand_tracker import HandTracker, draw_hand_skeleton
 from song_selector import SongSelector
-from ui import PlayButton, StemButton, Deck, Waveform
+from ui import PlayButton, StemButton, CueButton, Deck, Waveform
 
 def main():
     tracker = HandTracker()
@@ -18,18 +18,23 @@ def main():
 
     height, width, _ = frame.shape
 
-    def_left = "ctmn"
-    def_right = "crew_love"
+    def_left = "d127"
+    def_right = "levels127"
 
     song_selector = SongSelector()
     song_selector.select("left", def_left)
     song_selector.select("right", def_right)
 
     # Play buttons (display coords: left on left, right on right)
-    left_button = PlayButton(width // 4 - 30, 2 * height // 3, 100, 100, selector=song_selector, side="left")
-    right_button = PlayButton(3 * width // 4 - 70, 2 * height // 3, 100, 100, selector=song_selector, side="right")
+    py = 2 * height // 3
+    left_button = PlayButton(width // 4 - 30, py, 100, 100, selector=song_selector, side="left")
+    right_button = PlayButton(3 * width // 4 - 70, py, 100, 100, selector=song_selector, side="right")
+    cue_radius = 44
+    cue_y = py + 100 + 80
+    left_cue = CueButton(width // 4 + 20, cue_y, cue_radius, selector=song_selector, side="left")
+    right_cue = CueButton(3 * width // 4 - 20, cue_y, cue_radius, selector=song_selector, side="right")
 
-    buttons = [left_button, right_button]
+    buttons = [left_button, right_button, left_cue, right_cue]
 
     stem_labels = ["bass", "drm", "oth", "vox"]
     stem_size = 70

@@ -44,6 +44,10 @@ class SongSelector:
     def pause(self, side):
         self.playing[side] = False
 
+    def cue(self, side):
+        self.position[side] = 0
+        self.playing[side] = False
+
     def mute(self, side, stem_index):
         self.volumes[side][stem_index] = 0.0
 

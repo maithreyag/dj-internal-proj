@@ -68,6 +68,36 @@ class PlayButton(Button):
         self.selector.pause(self.side)
 
 
+class CueButton(Button):
+    def __init__(self, cx, cy, radius, selector, side, **kwargs):
+        self.cx = cx
+        self.cy = cy
+        self.radius = radius
+        super().__init__(cx - radius, cy - radius, 2 * radius, 2 * radius, **kwargs)
+        self.selector = selector
+        self.side = side
+
+    def contains(self, pos):
+        if pos is None:
+            return False
+        x, y = pos
+        return (x - self.cx) ** 2 + (y - self.cy) ** 2 <= self.radius ** 2
+
+    def draw(self, frame):
+        color = self.active_color if self.on else self.color
+        cv2.circle(frame, (self.cx, self.cy), self.radius, color, 3)
+        return frame
+
+    def activate(self):
+        self.selector.cue(self.side)
+
+    def draw_label(self, frame):
+        cv2.putText(frame, "CUE",
+                    (self.cx - 18, self.cy + 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
+        return frame
+
+
 class StemButton(Button):
     def __init__(self, x, y, width, height, selector, side, stem_index, label="", **kwargs):
         super().__init__(x, y, width, height, **kwargs)

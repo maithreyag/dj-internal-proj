@@ -1,7 +1,7 @@
 import cv2
 from hand_tracker import HandTracker, draw_hand_skeleton
 from song_selector import SongSelector
-from ui import PlayButton, StemButton, CueButton, Deck, Waveform
+from ui import PlayButton, StemButton, CueButton, Deck, Waveform, BPMSlider
 
 def main():
     tracker = HandTracker()
@@ -18,12 +18,13 @@ def main():
 
     height, width, _ = frame.shape
 
-    def_left = "d127"
-    def_right = "levels127"
+    def_left = "starboy"
+    def_right = "oouuh"
 
     song_selector = SongSelector()
     song_selector.select("left", def_left)
     song_selector.select("right", def_right)
+    song_selector.apply_bpm_sync()
 
     # Play buttons (display coords: left on left, right on right)
     py = 2 * height // 3
@@ -72,6 +73,15 @@ def main():
     right_wf = Waveform(right_deck.cx - deck_radius, wf_y, 2 * deck_radius, wf_height, selector=song_selector, side="right")
     waveforms = [left_wf, right_wf]
 
+    # BPM sliders under each deck's 4 stem buttons, same width as the 2x2 block
+    slider_w = 2 * stem_size + gap
+    slider_h = 44
+    slider_y_left = ly + 2 * (stem_size + gap) + gap
+    slider_y_right = ry + 2 * (stem_size + gap) + gap
+    left_slider = BPMSlider(lx, slider_y_left, slider_w, slider_h, song_selector, "left")
+    right_slider = BPMSlider(rx, slider_y_right, slider_w, slider_h, song_selector, "right")
+    sliders = [left_slider, right_slider]
+
     print("DJ Hand Tracking Started. Press 'q' to exit.")
 
     try:
@@ -108,6 +118,9 @@ def main():
                         deck.update(hand, press_pos)
                     else:
                         deck.prev_angle[hand] = None
+                for slider in sliders:
+                    if tracker.state[hand] == 1:
+                        slider.update(hand, pinch_pos)
 
             reversed_frame = cv2.flip(frame, 1)
 
@@ -121,6 +134,8 @@ def main():
 
             for wf in waveforms:
                 wf.draw(reversed_frame)
+            for slider in sliders:
+                slider.draw(reversed_frame)
 
             cv2.imshow('CV DJ Set', reversed_frame)
 

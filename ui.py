@@ -195,6 +195,55 @@ class Deck:
         return frame
 
 
+class Slider:
+    """Horizontal slider. value in [0, 1]. Drag with press (state 2)."""
+    def __init__(self, x, y, width, height, value=0.5, color=(100, 100, 100), thumb_color=(200, 200, 200)):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.value = max(0.0, min(1.0, value))
+        self.color = color
+        self.thumb_color = thumb_color
+
+    def contains(self, pos):
+        if pos is None:
+            return False
+        px, py = pos
+        return (self.x <= px <= self.x + self.width and
+                self.y <= py <= self.y + self.height)
+
+    def update(self, hand, pos):
+        if not self.contains(pos):
+            return
+        px = pos[0]
+        self.value = max(0.0, min(1.0, (px - self.x) / self.width))
+        self.on_value(self.value)
+
+    def on_value(self, value):
+        """Override in subclass to react to value changes."""
+        pass
+
+    def draw(self, frame):
+        cv2.rectangle(frame, (self.x, self.y), (self.x + self.width, self.y + self.height), self.color, 2)
+        thumb_x = int(self.x + self.value * self.width)
+        thumb_cx = max(self.x + 2, min(self.x + self.width - 2, thumb_x))
+        cv2.circle(frame, (thumb_cx, self.y + self.height // 2), self.height // 2 - 2, self.thumb_color, -1)
+        return frame
+
+
+class BPMSlider(Slider):
+    """Slider that sets deck playback rate: 0 (left) = stop, 1 (right) = 2x avg BPM."""
+    def __init__(self, x, y, width, height, selector, side, **kwargs):
+        super().__init__(x, y, width, height, value=0.5, **kwargs)
+        self.selector = selector
+        self.side = side
+        self.selector.set_rate(side, self.value * 2.0)
+
+    def on_value(self, value):
+        self.selector.set_rate(self.side, value * 2.0)
+
+
 class Waveform:
     def __init__(self, x, y, width, height, selector, side, color=(0, 255, 0)):
         self.x = x

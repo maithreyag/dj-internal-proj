@@ -2,4 +2,8 @@
 hand_landmarker.task
 __pycache__/
 songs/
-.DS_Store/
+.DS_Store
+
+*.joblib
+*.pt
+gesture_data.csv

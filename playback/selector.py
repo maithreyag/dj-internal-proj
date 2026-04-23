@@ -100,7 +100,7 @@ class SongSelector:
         self.playing[side] = False
 
     def set_rate(self, side, rate):
-        self.rate[side] = max(0.0, float(rate))
+        self.rate[side] = max(0.0, min(2.0, float(rate)))
 
     def reset_tempo(self, side):
         """Reset deck to 1x (average BPM)."""

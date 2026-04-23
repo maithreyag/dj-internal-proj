@@ -78,21 +78,26 @@ def main():
     gesture_classifier = GestureClassifier()
 
     # Play buttons (display coords: left on left, right on right)
-    py = 2 * height // 3
+    # Tweak: Push the bottom layout down slightly to distance it from the waveforms
+    py = 2 * height // 3 - 30
     left_button  = PlayButton(width // 4 - 30,      py, 100, 100, selector=song_selector, side="left")
     right_button = PlayButton(3 * width // 4 - 70,  py, 100, 100, selector=song_selector, side="right")
+    
+    stem_labels = ["bass", "drm", "oth", "vox"]
+    stem_size = 72
+    gap = 18
+
     cue_radius = 44
-    cue_y = py + 100 + 80
+    # Align bottom of circular cue button with bottom of the slider
+    slider_h = 44
+    slider_bottom = min(py + 2 * (stem_size + gap) + 10, height - slider_h - 10) + slider_h
+    cue_y = slider_bottom - cue_radius
     left_cue  = MemoryCueButton(width // 4 + 20,      cue_y, cue_radius, selector=song_selector, side="left")
     right_cue = MemoryCueButton(3 * width // 4 - 20,  cue_y, cue_radius, selector=song_selector, side="right")
 
-    stem_labels = ["bass", "drm", "oth", "vox"]
-    stem_size = 52
-    gap = 18
-
     # Left stems (to the left of left play button)
     lx = width // 4 - 30 - (2 * stem_size + gap) - gap
-    ly = 2 * height // 3
+    ly = py
     left_stems = []
     all_buttons = [left_button, right_button, left_cue, right_cue]
     for i, label in enumerate(stem_labels):
@@ -106,7 +111,7 @@ def main():
 
     # Right stems (to the right of right play button)
     rx = 3 * width // 4 + 30 + gap
-    ry = 2 * height // 3
+    ry = py
     right_stems = []
     for i, label in enumerate(stem_labels):
         row, col = divmod(i, 2)
@@ -118,13 +123,15 @@ def main():
         all_buttons.append(btn)
 
     # Decks (top corners)
-    deck_radius = height // 4
+    # Tweak: Make decks slightly larger and closer to their original height
+    deck_radius = 170
     left_deck  = Deck(deck_radius + 20,        deck_radius + 20, deck_radius, selector=song_selector, side="left",  label="L")
     right_deck = Deck(width - deck_radius - 20, deck_radius + 20, deck_radius, selector=song_selector, side="right", label="R")
     decks = [left_deck, right_deck]
 
     wf_height = 60
-    wf_y = 2 * deck_radius + 40
+    # Tweak: Move waveform slightly up so it perfectly hugs the bottom of the decks
+    wf_y = 2 * deck_radius + 20
     left_wf  = Waveform(left_deck.cx  - deck_radius, wf_y, 2 * deck_radius, wf_height, selector=song_selector, side="left")
     right_wf = Waveform(right_deck.cx - deck_radius, wf_y, 2 * deck_radius, wf_height, selector=song_selector, side="right")
     waveforms = [left_wf, right_wf]
@@ -168,11 +175,9 @@ def main():
                 action, side = gesture_classifier.parse_gesture(gesture)
 
                 # Fire one-shot actions on gesture change
-                if gesture and gesture != prev_gestures[hand] and action:
-                    btn = left_button if side == "left" else right_button
-                    if action == "fist":
-                        song_selector.pause(side)
-                        btn.on = False
+                if gesture and gesture != prev_gestures[hand] and action == "fist":
+                    song_selector.pause(side)
+                    left_button.on = right_button.on = False
 
                 # Continuous actions — fire every frame while gesture is held
                 if action == "peace":

@@ -5,6 +5,7 @@ from hand_tracking.tracker import HandTracker, draw_hand_skeleton
 from hand_tracking.classifier import GestureClassifier
 from playback.selector import SongSelector
 from playback.ui import PlayButton, StemButton, StartButton, MemoryCueButton, ResetCueButton, TempoResetButton, Deck, Waveform, BPMSlider, VolumeSlider
+from hand_tracking import gesture_actions
 
 # Fixed display size: UI and hit-testing are always in this resolution,
 # so layout looks the same on every device regardless of camera or window size.
@@ -146,7 +147,22 @@ def main():
     right_slider = BPMSlider(rx, slider_y_right, slider_w, slider_h, song_selector, "right")
     sliders = [left_slider, right_slider]
 
-    BPM_SLOW_STEP = 0.005  # rate change per frame while peace/thumb is held
+    # UI references passed to gesture action handlers
+    ui = {
+        "left_button": left_button,
+        "right_button": right_button,
+        "left_stems": left_stems,
+        "right_stems": right_stems,
+    }
+
+    # Dispatch tables for gesture actions
+    ONE_SHOT = {
+        "fist":  gesture_actions.on_fist,
+    }
+    CONTINUOUS = {
+        "peace": gesture_actions.hold_peace,
+        "thumb": gesture_actions.hold_thumb,
+    }
 
     prev_gestures = {"Left": None, "Right": None}
     print("DJ Hand Tracking Started. Press 'q' to exit.")
@@ -175,17 +191,16 @@ def main():
                 action, side = gesture_classifier.parse_gesture(gesture)
 
                 # Fire one-shot actions on gesture change
-                if gesture and gesture != prev_gestures[hand] and action == "fist":
-                    song_selector.pause(side)
-                    left_button.on = right_button.on = False
+                if gesture and gesture != prev_gestures[hand]:
+                    handler = ONE_SHOT.get(action)
+                    if handler:
+                        handler(action, side, song_selector, ui)
 
                 # Continuous actions — fire every frame while gesture is held
-                if action == "peace":
-                    current_rate = song_selector.rate[side]
-                    song_selector.set_rate(side, current_rate - BPM_SLOW_STEP)
-                if action == "thumb":
-                    current_rate = song_selector.rate[side]
-                    song_selector.set_rate(side, current_rate + BPM_SLOW_STEP)
+                if action:
+                    handler = CONTINUOUS.get(action)
+                    if handler:
+                        handler(action, side, song_selector, ui)
 
                 prev_gestures[hand] = gesture
 

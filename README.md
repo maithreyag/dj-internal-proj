@@ -2,7 +2,7 @@
 
 Real-time gesture-controlled DJ built in Python. MediaPipe tracks two hands, a custom PyTorch classifier recognizes gestures, and a stem-based audio engine mixes music — all running in a single OpenCV loop over your webcam at interactive framerates. **Pinch** to press buttons, spin vinyl decks, and drag sliders. **Gesture** to trigger deck actions like pause or stem isolation.
 
-The hardest problems were getting the audio callback to stay glitch-free under variable playback rates (solved with vectorized NumPy interpolation in the `sounddevice` callback), and making pinch detection reliable (hysteresis thresholds with separate merge/unmerge distances to avoid flickering).
+The hardest problems were getting the audio callback to stay glitch-free under variable playback rates (solved with vectorized NumPy interpolation in the `sounddevice` callback), and making gesture data invariant to hand position, size, and distance from camera (solved by wrist-centering and normalizing by palm scale before training).
 
 ### [▶ Watch the Demo](https://drive.google.com/file/d/1HLQVPp4IvFh-YlwH3QAcSvwzPhU1dOjl/view?usp=sharing)
 
